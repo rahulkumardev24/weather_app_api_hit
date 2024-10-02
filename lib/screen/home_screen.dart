@@ -1,9 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../api/api_helper.dart';
 import '../model/weather_model.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,16 +17,36 @@ TextEditingController locationController = TextEditingController();
 
 class _HomeScreenState extends State<HomeScreen> {
   Future<WeatherDataModel?>? futureWeather;
+
+  /// hourly
+  Future<List?>? futureHourlyWeather;
   String _currentLocation = "Location....";
   bool _isSearchVisible = false;
+  final ApiHelper _apiHelper = ApiHelper();
+
+  /// weather
+  Future<void> _fetchWeather() async {
+    if (locationController.text.isNotEmpty) {
+      setState(() {
+        _currentLocation = locationController.text;
+        futureWeather = _apiHelper.getWeatherData(locationController.text);
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+    _getAreaLocation();
+    setState(() {});
   }
 
-  @override
+  String formatTime(int timestamp) {
+    final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+    return DateFormat.jm().format(dateTime); // Format time to AM/PM
+  }
+
   MediaQueryData? mqData;
   Widget build(BuildContext context) {
     mqData = MediaQuery.of(context);
@@ -45,259 +65,415 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           // Content overlay
-          Center(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 40),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    Image.asset(
-                      "assets/icons/cast.png",
-                      width: 30,
-                      height: 30,
-                      color: Colors.white,
-                    ),
-                    const Text(
-                      "Whether",
-                      style: TextStyle(color: Colors.white, fontSize: 25),
-                    ),
-                    // Search icon
-                    IconButton(
-                      icon: const Icon(
-                        Icons.search,
-                        size: 30,
+          SingleChildScrollView(
+            child: Center(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Image.asset(
+                        "assets/icons/cast.png",
+                        width: 30,
+                        height: 30,
                         color: Colors.white,
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _isSearchVisible =
-                              !_isSearchVisible; // Toggle visibility
-                        });
-                      },
-                    ),
-                  ],
-                ),
+                      const Text(
+                        "Whether",
+                        style: TextStyle(color: Colors.white, fontSize: 25),
+                      ),
+                      // Search icon
+                      IconButton(
+                        icon: const Icon(
+                          Icons.search,
+                          size: 30,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _isSearchVisible =
+                                !_isSearchVisible; // Toggle visibility
+                          });
+                        },
+                      ),
+                    ],
+                  ),
 
-                /// Show search box if _isSearchVisible is true
-                if (_isSearchVisible)
-                  SizedBox(
-                    width: mqData!.size.width * 0.9,
-                    child: TextField(
-                      controller: locationController,
-                      decoration: InputDecoration(
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: Colors.deepOrange, width: 2),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                              color: Colors.deepOrange, width: 2),
-                        ),
-                        hintText: "Search location",
-                        hintStyle: const TextStyle(color: Colors.white),
-                        suffixIcon: IconButton(
-                          onPressed: () async {
-                            if (locationController.text.isEmpty) {
-                              // If text field is empty, do nothing or show a message
-                              // You can also keep this to get the current location if desired.
-                            } else {
+                  /// Show search box if _isSearchVisible is true
+                  if (_isSearchVisible)
+                    SizedBox(
+                      width: mqData!.size.width * 0.9,
+                      child: TextField(
+                        controller: locationController,
+                        decoration: InputDecoration(
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: Colors.deepOrange, width: 2),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                                color: Colors.deepOrange, width: 2),
+                          ),
+                          hintText: "Search location",
+                          hintStyle: const TextStyle(color: Colors.white),
+                          suffixIcon: IconButton(
+                            onPressed: () {
                               // Fetch weather data for typed location
-                              setState(() {
-                                _currentLocation = locationController
-                                    .text; // Update current location
-                                futureWeather = getWeatherData(
-                                    locationController.text.toString());
-                              });
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.search,
-                            color: Colors.white70,
+                              _fetchWeather(); // Call the fetch weather function
+                            },
+                            icon: const Icon(
+                              Icons.search,
+                              color: Colors.white70,
+                            ),
                           ),
                         ),
                       ),
                     ),
+
+                  const SizedBox(height: 10),
+
+                  const SizedBox(
+                    height: 10,
                   ),
 
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _currentLocation,
-                      style: const TextStyle(
-                          fontSize: 25,
-                          color: Colors.white,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Colors.lightBlueAccent),
-                    ),
-                    IconButton(
-                        onPressed: () {
-                          _getAreaLocation();
-                        },
-                        icon: const Icon(
-                          Icons.location_on_sharp,
-                          size: 25,
-                          color: Colors.red,
-                        )),
-                  ],
-                ),
+                  /// Weather data display
+                  FutureBuilder<WeatherDataModel?>(
+                    future: futureWeather,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const CircularProgressIndicator();
+                      } else if (snapshot.hasError) {
+                        return const Text("Error fetching data");
+                      } else if (snapshot.hasData) {
+                        final weatherData = snapshot.data!;
+                        return Column(
+                          children: [
+                            /// weather
+                            SizedBox(
+                              width: mqData!.size.width * 0.95,
+                              height: mqData!.size.height * 0.35,
+                              child: Card(
+                                color: Colors.lightBlueAccent.withOpacity(0.4),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 10.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                _currentLocation,
+                                                style: const TextStyle(
+                                                    fontSize: 20,
+                                                    color: Colors.white,
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                    decorationColor:
+                                                        Colors.lightBlueAccent),
+                                              ),
+                                              IconButton(
+                                                  onPressed: () {
+                                                    _getAreaLocation();
+                                                  },
+                                                  icon: const Icon(
+                                                    Icons.location_on_sharp,
+                                                    size: 20,
+                                                    color: Colors.red,
+                                                  )),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      Text(
+                                        weatherData.weather?[0].description ??
+                                            'N/A',
+                                        style: const TextStyle(
+                                            fontSize: 20, color: Colors.white),
+                                      ),
 
-                const SizedBox(
-                  height: 40,
-                ),
+                                      /// Temperature
+                                      Text(
+                                        "${weatherData.main?.temp ?? 'N/A'}°C",
+                                        style: const TextStyle(
+                                            fontSize: 60, color: Colors.white),
+                                      ),
 
-                // Weather data display
-                FutureBuilder<WeatherDataModel?>(
-                  future: futureWeather,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const CircularProgressIndicator();
-                    } else if (snapshot.hasError) {
-                      return const Text("Error fetching data");
-                    } else if (snapshot.hasData) {
-                      final weatherData = snapshot.data!;
-                      return Column(
-                        children: [
-                          /// weather
-                          Text(
-                            weatherData.weather?[0].description ?? 'N/A',
-                            style: const TextStyle(
-                                fontSize: 20, color: Colors.white),
-                          ),
-                          /// Temperature
-                          Text(
-                            "${weatherData.main?.temp ?? 'N/A'}°C",
-                            style: const TextStyle(
-                                fontSize: 60, color: Colors.white),
-                          ),
-                          /// fill like 
-                          Text(
-                            "Feels like: ${weatherData.main?.feelsLike ?? 'N/A'}°C",
-                            style: const TextStyle(
-                                fontSize: 15, color: Colors.white),
-                          ),
-                          
-                          /// ...................Three box.........................//
-                          SizedBox(
-                            width: double.infinity,
-                            height: 120,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                               children: [
-                                 /// wind speed
-                                 Container(
-                                   width: mqData!.size.width * 0.3,
-                                   height: mqData!.size.height * 0.2,
-                                   decoration: BoxDecoration(
-                                     borderRadius: BorderRadius.circular(20),
-                                     gradient: const LinearGradient(
-                                       colors: [
-                                         Colors.yellow, // First color (yellow)
-                                         Colors.blue,   // Second color (blue)
-                                       ],
-                                       begin: Alignment.topCenter, // Starting point of the gradient
-                                       end: Alignment.bottomCenter, // Ending point of the gradient
-                                     ),
-                                   ),
-                                   child: Padding(
-                                     padding: const EdgeInsets.all(8.0),
-                                     child: Column(
-                                       crossAxisAlignment: CrossAxisAlignment.start,
-                                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                       children: [
-                                         const Icon(Icons.wind_power , color: Colors.white,),
-                                         const Text("Wind speed" , style: TextStyle(color: Colors.white),),
-                                         Text(
-                                           "${weatherData.wind?.speed ?? 'N/A'} m/s", style: const TextStyle(color: Colors.white),
-                                         ),
-                                       ],
-                                     ),
-                                   ),
-                                 ) ,
-                                 /// pressure
-                                 Container(
-                                   width: mqData!.size.width * 0.3,
-                                   height: mqData!.size.height * 0.2,
-                                   decoration: BoxDecoration(
-                                     borderRadius: BorderRadius.circular(20),
-                                     gradient: const LinearGradient(
-                                       colors: [
-                                         Colors.yellow, // First color (yellow)
-                                         Colors.blue,   // Second color (blue)
-                                       ],
-                                       begin: Alignment.topCenter, // Starting point of the gradient
-                                       end: Alignment.bottomCenter, // Ending point of the gradient
-                                     ),
-                                   ),
-                                   child: Padding(
-                                     padding: const EdgeInsets.all(8.0),
-                                     child: Column(
-                                       crossAxisAlignment: CrossAxisAlignment.start,
-                                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                       children: [
-                                         const Icon(Icons.thermostat , color: Colors.white,),
-                                         const Text("Pressure" , style: TextStyle(color: Colors.white),),
-                                         Text(
-                                           "${weatherData.main?.pressure ?? 'N/A'} MB", style: TextStyle(color: Colors.white),
-                                         ),
-                                       ],
-                                     ),
-                                   ),
-                                 ) ,
-                                 Container(
-                                   width: mqData!.size.width * 0.3,
-                                   height: mqData!.size.height * 0.2,
-                                   decoration: BoxDecoration(
-                                     borderRadius: BorderRadius.circular(20),
-                                     gradient: const LinearGradient(
-                                       colors: [
-                                         Colors.yellow, // First color (yellow)
-                                         Colors.blue,   // Second color (blue)
-                                       ],
-                                       begin: Alignment.topCenter, // Starting point of the gradient
-                                       end: Alignment.bottomCenter, // Ending point of the gradient
-                                     ),
-                                   ),
-                                   child: Padding(
-                                     padding: const EdgeInsets.all(8.0),
-                                     child: Column(
-                                       crossAxisAlignment: CrossAxisAlignment.start,
-                                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                       children: [
-                                         const Icon(Icons.water_drop_outlined , color: Colors.white,),
-                                         const Text("Humidity" , style: TextStyle(color: Colors.white),),
-                                         Text(
-                                           "${weatherData.main?.humidity ?? 'N/A'} %", style: const TextStyle(color: Colors.white),
-                                         ),
-                                       ],
-                                     ),
-                                   ),
-                                 ) ,
-
-                               ],
+                                      /// feel like
+                                      Text(
+                                        "Feels like: ${weatherData.main?.feelsLike ?? 'N/A'}°C",
+                                        style: const TextStyle(
+                                            fontSize: 15, color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                          ) ,
- 
-                          Text(
-                              "Location: ${weatherData.name}, ${weatherData.sys?.country ?? ''}"),
 
+                            const SizedBox(
+                              height: 120,
+                            ),
 
-                          Text("Clouds: ${weatherData.clouds?.all ?? 'N/A'}%"),
-                          Text(
-                              "Visibility: ${weatherData.visibility ?? 'N/A'} m"),
-                        ],
-                      );
-                    } else {
-                      return const Text("No data available");
-                    }
-                  },
-                ),
-              ],
+                            /// ...................Three box.........................//
+                            SizedBox(
+                              width: double.infinity,
+                              height: 120,
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  /// wind speed
+                                  Container(
+                                    width: mqData!.size.width * 0.3,
+                                    height: mqData!.size.height * 0.2,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Colors.yellow, // First color (yellow)
+                                          Colors.blue, // Second color (blue)
+                                        ],
+                                        begin: Alignment
+                                            .centerLeft, // Starting point of the gradient
+                                        end: Alignment
+                                            .topRight, // Ending point of the gradient
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceEvenly,
+                                        children: [
+                                          const Icon(
+                                            Icons.wind_power,
+                                            color: Colors.white,
+                                          ),
+                                          const Text(
+                                            "Wind speed",
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                          Text(
+                                            "${weatherData.wind?.speed ?? 'N/A'} m/s",
+                                            style: const TextStyle(
+                                                color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+
+                                  /// pressure
+                                  Container(
+                                    width: mqData!.size.width * 0.3,
+                                    height: mqData!.size.height * 0.2,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Colors.yellow, // First color (yellow)
+                                          Colors.blue, // Second color (blue)
+                                        ],
+                                        begin: Alignment
+                                            .topCenter, // Starting point of the gradient
+                                        end: Alignment
+                                            .bottomCenter, // Ending point of the gradient
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceEvenly,
+                                        children: [
+                                          const Icon(
+                                            Icons.thermostat,
+                                            color: Colors.white,
+                                          ),
+                                          const Text(
+                                            "Pressure",
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                          Text(
+                                            "${weatherData.main?.pressure ?? 'N/A'} MB",
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: mqData!.size.width * 0.3,
+                                    height: mqData!.size.height * 0.2,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(20),
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Colors.yellow, // First color (yellow)
+                                          Colors.blue, // Second color (blue)
+                                        ],
+                                        end: Alignment
+                                            .centerLeft, // Starting point of the gradient
+                                        begin: Alignment
+                                            .topRight, // Ending point of the gradient
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceEvenly,
+                                        children: [
+                                          const Icon(
+                                            Icons.waves,
+                                            color: Colors.white,
+                                          ),
+                                          const Text(
+                                            "Humidity",
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                          Text(
+                                            "${weatherData.main?.humidity ?? 'N/A'}%",
+                                            style: const TextStyle(
+                                                color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 10,
+                            ),
+
+                            ///.......................Hourly Forecast...................//
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Hourly Forecast",
+                                    style: TextStyle(fontSize: 15),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 10,
+                            ),
+
+                            /// here call  fetchHourlyWeather
+                            SizedBox(
+                              width: mqData!.size.width * 0.95,
+                              child: Card(
+                                color: Colors.white,
+                                child: FutureBuilder<List?>(
+                                  future: futureHourlyWeather,
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const CircularProgressIndicator();
+                                    } else if (snapshot.hasError) {
+                                      return const Text(
+                                          "Error fetching hourly data");
+                                    } else if (snapshot.hasData) {
+                                      final hourlyData = snapshot.data!;
+                                      return SizedBox(
+                                        height: mqData!.size.height * 0.2,
+                                        child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: hourlyData.length,
+                                          itemBuilder: (context, index) {
+                                            final hourlyItem =
+                                                hourlyData[index];
+                                            final timestamp = hourlyItem['dt'];
+                                            final temp =
+                                                hourlyItem['main']['temp'];
+                                            final description =
+                                                hourlyItem['weather'][0]
+                                                    ['description'];
+                                            final iconCode =
+                                                hourlyItem['weather'][0]
+                                                    ['icon'];
+
+                                            // Build the URL for the weather icon
+                                            final iconUrl =
+                                                'https://openweathermap.org/img/w/$iconCode.png';
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.all(8.0),
+                                              child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Text(formatTime(timestamp)),
+                                                  Image.network(
+                                                    iconUrl,
+                                                    height: 70,
+                                                    width: 70,
+                                                    fit: BoxFit.cover,
+                                                  ),
+                                                  Container(
+                                                      width: 70,
+                                                      height: 20,
+                                                      decoration: BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(5),
+                                                          color: Colors
+                                                              .lightBlueAccent),
+                                                      child: Text(
+                                                        "$temp°C",
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      )),
+                                                  Text(description),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      );
+                                    }
+                                    return const Text(
+                                        "No hourly data available");
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                      return const Center(child: Text("No data available"));
+                    },
+                  )
+                ],
+              ),
             ),
           ),
         ],
@@ -305,68 +481,34 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<WeatherDataModel?> getWeatherData(String location) async {
-    String apiKey = 'a521729886fc669ae138ed61ba1f335e';
-    String url =
-        'https://api.openweathermap.org/data/2.5/weather?q=$location&appid=$apiKey&units=metric';
-
-    http.Response response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      var jsonData = jsonDecode(response.body);
-      print('API Response: ${response.body}');
-
-      WeatherDataModel weatherData = WeatherDataModel.fromJson(jsonData);
-      return weatherData;
-    } else {
-      print('Failed to load weather data');
-      return null;
-    }
-  }
-
-  Future<void> _checkPermissions() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) {
-      await _getAreaLocation();
-    } else {
-      setState(() {
-        _currentLocation = "Location permission is denied.";
-      });
-    }
-  }
-
+  // Fetch location and weather data
   Future<void> _getAreaLocation() async {
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      print('Position: Lat ${position.latitude}, Long ${position.longitude}');
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    List<Placemark> placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
 
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
+    if (placemarks.isNotEmpty) {
+      Placemark place = placemarks[0];
+      String location = place.locality ?? "Unknown";
 
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        String location =
-            "${place.locality}"; // Get the locality or any other detail you want
-        print('Location: $location');
-
-        setState(() {
-          _currentLocation = location; // Update the current location to display
-          locationController.text = ''; // Clear the input field
-          futureWeather = getWeatherData(
-              location); // Fetch weather data for the current location
-        });
-      } else {
-        print('No placemarks found.');
-      }
-    } catch (e) {
-      print('Failed to get location: $e');
       setState(() {
-        _currentLocation = "Failed to get location: ${e.toString()}";
+        _currentLocation = location;
+        locationController.text = '';
+        futureWeather = _apiHelper.getWeatherData(location);
+        futureHourlyWeather =
+            _apiHelper.getHourlyWeather(position.latitude, position.longitude);
       });
+    }
+  }
+
+  void _checkPermissions() async {
+    var status = await Permission.location.status;
+    if (status.isDenied) {
+      await Permission.location.request();
     }
   }
 }
