@@ -9,4 +9,8 @@ class Urls {
   static String getHourlyUrls(double lat, double lon) {
     return 'https://api.openweathermap.org/data/2.5/forecast?lat=$lat&lon=$lon&appid=$apiKey&units=metric';
   }
+
+  static String getHourlyUrlsCity(String city) {
+    return 'https://api.openweathermap.org/data/2.5/forecast?q=$city&appid=$apiKey&units=metric';
+  }
 }

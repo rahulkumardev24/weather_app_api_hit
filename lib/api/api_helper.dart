@@ -8,38 +8,32 @@ class ApiHelper {
   Future<WeatherDataModel?> getWeatherData(String location) async {
     final String url = Urls.getWeatherUrl(location);
 
-      http.Response response = await http.get(Uri.parse(url));
+    http.Response response = await http.get(Uri.parse(url));
 
-      if (response.statusCode == 200) {
-        var jsonData = jsonDecode(response.body);
-        print('API Response: ${response.body}');
+    if (response.statusCode == 200) {
+      var jsonData = jsonDecode(response.body);
 
-        WeatherDataModel weatherData = WeatherDataModel.fromJson(jsonData);
-        return weatherData;
-      } else {
-        print(
-            'Failed to load weather data. Status code: ${response.statusCode}');
-        return null;
+      WeatherDataModel weatherData = WeatherDataModel.fromJson(jsonData);
+      return weatherData;
     }
   }
 
-  Future<List?> getHourlyWeather(double lat, double lon) async {
-    final String url = Urls.getHourlyUrls(lat, lon);
+  Future<List?> getHourlyWeather(
+      {double? lat, double? lon, String? city, bool isLatLong = true}) async {
 
-      http.Response response = await http.get(Uri.parse(url));
+    /// if lat log the send latlong urls if city then send city urls
+    String url =
+        "https://api.openweathermap.org/data/2.5/forecast?${isLatLong ? "lat=$lat&lon=$lon" : "q=$city"}&appid=${Urls.apiKey}&units=metric";
+    /* if(isLatLong){
+      url = Urls.getHourlyUrls(lat!, lon!);
+    } else {
+      url = Urls.getHourlyUrlsCity(city!);
+    }*/
+    http.Response response = await http.get(Uri.parse(url));
 
-      if (response.statusCode == 200) {
-        var jsonData = jsonDecode(response.body);
-        print('API Response: ${response.body}');
-
-        // Extracting hourly forecast data
-        return jsonData['list'];
-      } else {
-        print('Failed to load hourly weather data. Status code: ${response.statusCode}');
-        return null;
-      }
-
+    if (response.statusCode == 200) {
+      var jsonData = jsonDecode(response.body);
+      return jsonData['list'];
     }
-
-
+  }
 }

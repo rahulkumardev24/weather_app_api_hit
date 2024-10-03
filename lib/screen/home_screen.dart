@@ -3,6 +3,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:weather_app_api_hit/screen/view_all_details.dart';
 import '../api/api_helper.dart';
 import '../model/weather_model.dart';
 
@@ -30,6 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _currentLocation = locationController.text;
         futureWeather = _apiHelper.getWeatherData(locationController.text);
+        futureHourlyWeather = _apiHelper.getHourlyWeather(
+            city: locationController.text, isLatLong: false);
       });
     }
   }
@@ -155,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             /// weather
                             SizedBox(
                               width: mqData!.size.width * 0.95,
-                              height: mqData!.size.height * 0.35,
+                              height: mqData!.size.height * 0.3,
                               child: Card(
                                 color: Colors.lightBlueAccent.withOpacity(0.4),
                                 child: Padding(
@@ -471,7 +474,62 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                       return const Center(child: Text("No data available"));
                     },
-                  )
+                  ),
+                  const SizedBox(
+                    height: 10,
+                  ),
+
+                  ///......................... VIEW MORE BUTTON ...........................//
+                  FutureBuilder<WeatherDataModel?>(
+                    future:
+                        futureWeather, // Assuming this is where you're fetching weather data
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        final weatherData = snapshot.data!;
+
+                        return SizedBox(
+                          width: mqData!.size.width * 0.9,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                                backgroundColor: Colors.deepOrangeAccent,
+                                foregroundColor: Colors.white),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ViewAllDetails(
+                                    currentLocation: _currentLocation,
+                                    description: weatherData.weather?[0]
+                                        .description, // Pass description
+                                    feelsLike: weatherData.main?.feelsLike
+                                        ?.toString(), // Pass feels like temperature
+                                    temp: weatherData.main?.temp?.toString(),
+                                    wind: weatherData.wind?.speed.toString(),
+                                    pressure:
+                                        weatherData.main?.pressure.toString(),
+                                    humidity:
+                                        weatherData.main?.humidity.toString(),
+                                    maxTum:
+                                        weatherData.main?.tempMax.toString(),
+                                    minTum:
+                                        weatherData.main?.tempMin.toString(),
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text("View All Details"),
+                          ),
+                        );
+                      } else {
+                        return const SizedBox();
+                      }
+                    },
+                  ),
+                  const SizedBox(
+                    height: 10,
+                  ),
                 ],
               ),
             ),
@@ -499,8 +557,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _currentLocation = location;
         locationController.text = '';
         futureWeather = _apiHelper.getWeatherData(location);
-        futureHourlyWeather =
-            _apiHelper.getHourlyWeather(position.latitude, position.longitude);
+        futureHourlyWeather = _apiHelper.getHourlyWeather(
+            lat: position.latitude, lon: position.longitude);
       });
     }
   }
