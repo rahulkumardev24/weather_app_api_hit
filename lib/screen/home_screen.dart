@@ -50,6 +50,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return DateFormat.jm().format(dateTime); // Format time to AM/PM
   }
 
+  String formatDate(String dateTime) {
+    DateTime date = DateTime.parse(dateTime);
+    return DateFormat('EEE d MMM').format(date);
+  }
+
   MediaQueryData? mqData;
   Widget build(BuildContext context) {
     mqData = MediaQuery.of(context);
@@ -373,24 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               height: 10,
                             ),
 
-                            ///.......................Hourly Forecast...................//
-                            const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 10.0),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Hourly Forecast",
-                                    style: TextStyle(fontSize: 15),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-
-                            /// here call  fetchHourlyWeather
+                            /// ................here call  fetchHourlyWeather......................//
                             SizedBox(
                               width: mqData!.size.width * 0.95,
                               child: Card(
@@ -406,61 +394,77 @@ class _HomeScreenState extends State<HomeScreen> {
                                           "Error fetching hourly data");
                                     } else if (snapshot.hasData) {
                                       final hourlyData = snapshot.data!;
-                                      return SizedBox(
-                                        height: mqData!.size.height * 0.2,
-                                        child: ListView.builder(
-                                          scrollDirection: Axis.horizontal,
-                                          itemCount: hourlyData.length,
-                                          itemBuilder: (context, index) {
-                                            final hourlyItem =
-                                                hourlyData[index];
-                                            final timestamp = hourlyItem['dt'];
-                                            final temp =
-                                                hourlyItem['main']['temp'];
-                                            final description =
-                                                hourlyItem['weather'][0]
-                                                    ['description'];
-                                            final iconCode =
-                                                hourlyItem['weather'][0]
-                                                    ['icon'];
-
-                                            // Build the URL for the weather icon
-                                            final iconUrl =
-                                                'https://openweathermap.org/img/w/$iconCode.png';
-                                            return Padding(
-                                              padding:
-                                                  const EdgeInsets.all(8.0),
-                                              child: Column(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  Text(formatTime(timestamp)),
-                                                  Image.network(
-                                                    iconUrl,
-                                                    height: 70,
-                                                    width: 70,
-                                                    fit: BoxFit.cover,
-                                                  ),
-                                                  Container(
-                                                      width: 70,
-                                                      height: 20,
-                                                      decoration: BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(5),
-                                                          color: Colors
-                                                              .lightBlueAccent),
-                                                      child: Text(
-                                                        "$temp°C",
-                                                        textAlign:
-                                                            TextAlign.center,
-                                                      )),
-                                                  Text(description),
-                                                ],
+                                      return Column(
+                                        children: [
+                                          const Row(
+                                            children: [
+                                              Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Text("Hourly Forcast"),
                                               ),
-                                            );
-                                          },
-                                        ),
+                                            ],
+                                          ),
+                                          SizedBox(
+                                            height: mqData!.size.height * 0.2,
+                                            child: ListView.builder(
+                                              scrollDirection: Axis.horizontal,
+                                              itemCount: hourlyData.length,
+                                              itemBuilder: (context, index) {
+                                                final hourlyItem =
+                                                    hourlyData[index];
+                                                final timestamp =
+                                                    hourlyItem['dt'];
+                                                final temp =
+                                                    hourlyItem['main']['temp'];
+                                                final description =
+                                                    hourlyItem['weather'][0]
+                                                        ['description'];
+                                                final iconCode =
+                                                    hourlyItem['weather'][0]
+                                                        ['icon'];
+
+                                                // Build the URL for the weather icon
+                                                final iconUrl =
+                                                    'https://openweathermap.org/img/w/$iconCode.png';
+                                                return Padding(
+                                                  padding:
+                                                      const EdgeInsets.all(8.0),
+                                                  child: Column(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Text(formatTime(
+                                                          timestamp)),
+                                                      Image.network(
+                                                        iconUrl,
+                                                        height: 70,
+                                                        width: 70,
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                      Container(
+                                                          width: 70,
+                                                          height: 20,
+                                                          decoration: BoxDecoration(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          5),
+                                                              color: Colors
+                                                                  .lightBlueAccent),
+                                                          child: Text(
+                                                            "$temp°C",
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                          )),
+                                                      Text(description),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ],
                                       );
                                     }
                                     return const Text(
@@ -468,6 +472,142 @@ class _HomeScreenState extends State<HomeScreen> {
                                   },
                                 ),
                               ),
+                            ),
+
+                            const SizedBox(
+                              height: 20,
+                            ),
+
+                            ///.................................Hourly and 5-Day Forecast...................................//
+
+                            SizedBox(
+                              width: mqData!.size.width * 0.95,
+                              child: Card(
+                                color: Colors.white,
+                                child: FutureBuilder<List?>(
+                                  future: futureHourlyWeather,
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return const CircularProgressIndicator();
+                                    } else if (snapshot.hasError) {
+                                      return const Text(
+                                          "Error fetching hourly data");
+                                    } else if (snapshot.hasData) {
+                                      final hourlyData = snapshot.data!;
+
+                                      // Extract 5-day forecast
+                                      List dailyForecast = [];
+                                      for (var item in hourlyData) {
+                                        String dateTime = item['dt_txt'];
+                                        if (dateTime.contains("12:00:00")) {
+                                          dailyForecast.add(item);
+                                        }
+                                      }
+
+                                      return Column(
+                                        children: [
+                                          //..............................5-Day Forecast.............................//
+                                          const Padding(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 10.0),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  "5-Day Forecast",
+                                                  style:
+                                                      TextStyle(fontSize: 15),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+
+                                          SizedBox(
+                                              height: mqData!.size.height * 0.2,
+                                              child: ListView.builder(
+                                                  scrollDirection:
+                                                      Axis.horizontal,
+                                                  itemCount:
+                                                      dailyForecast.length,
+                                                  itemBuilder:
+                                                      (context, index) {
+                                                    final dailyItem =
+                                                        dailyForecast[index];
+                                                    final dateTime = dailyItem[
+                                                        'dt_txt']; // Extract date-time string
+                                                    final formattedDate =
+                                                        formatDate(
+                                                            dateTime); // Format the date
+
+                                                    final temp =
+                                                        dailyItem['main']
+                                                            ['temp'];
+                                                    final description =
+                                                        dailyItem['weather'][0]
+                                                            ['description'];
+                                                    final iconCode =
+                                                        dailyItem['weather'][0]
+                                                            ['icon'];
+
+                                                    // Build the URL for the weather icon
+                                                    final iconUrl =
+                                                        'https://openweathermap.org/img/w/$iconCode.png';
+
+                                                    return Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              8.0),
+                                                      child: Column(
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          Text(
+                                                              formattedDate), // Display formatted date
+                                                          Image.network(
+                                                            iconUrl,
+                                                            height: 70,
+                                                            width: 70,
+                                                            fit: BoxFit.cover,
+                                                          ),
+                                                          Container(
+                                                            width: 70,
+                                                            height: 20,
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          5),
+                                                              color: Colors
+                                                                  .lightBlueAccent,
+                                                            ),
+                                                            child: Text(
+                                                              "$temp°C",
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                            ),
+                                                          ),
+                                                          Text(description),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }))
+                                        ],
+                                      );
+                                    }
+                                    return const Text("No data available");
+                                  },
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(
+                              height: 10,
                             ),
                           ],
                         );

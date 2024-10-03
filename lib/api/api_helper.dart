@@ -20,10 +20,11 @@ class ApiHelper {
 
   Future<List?> getHourlyWeather(
       {double? lat, double? lon, String? city, bool isLatLong = true}) async {
-
-    /// if lat log the send latlong urls if city then send city urls
+    /// if lat log the send latLong urls if city then send city urls
     String url =
         "https://api.openweathermap.org/data/2.5/forecast?${isLatLong ? "lat=$lat&lon=$lon" : "q=$city"}&appid=${Urls.apiKey}&units=metric";
+
+    /// we can also use this
     /* if(isLatLong){
       url = Urls.getHourlyUrls(lat!, lon!);
     } else {
