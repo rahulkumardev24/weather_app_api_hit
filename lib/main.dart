@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:weather_app_api_hit/screen/day_forecast_screen.dart';
 import 'package:weather_app_api_hit/screen/home_screen.dart';
 
 void main() {
